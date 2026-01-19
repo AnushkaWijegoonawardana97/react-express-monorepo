@@ -15,8 +15,8 @@ Thank you for your interest in contributing to this project! This document provi
 
 ### Prerequisites
 
-- Node.js 20 or higher
-- pnpm 9.0.0 or higher
+- Node.js 20 or higher (enforced via package.json engines)
+- pnpm 9.0.0 (exact version required - enforced via packageManager)
 - MongoDB (optional for local development - API runs without it)
 
 ### Installation

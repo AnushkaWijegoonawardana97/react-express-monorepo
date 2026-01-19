@@ -4,17 +4,12 @@ on:
   push:
     branches:
       - main
-      - development
-  pull_request:
-    branches:
-      - main
-      - development
 
 jobs:
   ci:
     name: Continuous Integration
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -27,28 +22,33 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'pnpm'
+          node-version: "20"
+          cache: "pnpm"
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
       - name: TypeScript Check
+        id: tsc_check
         run: |
           echo "Checking TypeScript compilation..."
           cd apps/web && pnpm exec tsc --noEmit
           cd ../api && pnpm exec tsc --noEmit
 
       - name: Lint
+        id: lint_check
         run: |
           echo "Running linters..."
           cd apps/web && pnpm lint
           cd ../api
           if [ -f "eslint.config.js" ] || [ -f ".eslintrc.js" ]; then
-            pnpm exec eslint . --ext .ts || echo "No ESLint config for API"
+            pnpm exec eslint . --ext .ts
+          else
+            echo "⚠️  No ESLint config found for API, skipping lint"
           fi
 
       - name: Build
+        id: build_check
         run: |
           echo "Building projects..."
           pnpm build
@@ -57,8 +57,36 @@ jobs:
         if: always()
         run: |
           echo "## CI Results" >> $GITHUB_STEP_SUMMARY
-          if [ "${{ job.status }}" == "success" ]; then
-            echo "✅ All CI checks passed!" >> $GITHUB_STEP_SUMMARY
+
+          ALL_PASSED=true
+
+          # Check TypeScript compilation
+          if [ "${{ steps.tsc_check.outcome }}" == "success" ]; then
+            echo "- ✅ TypeScript compilation successful (Web & API)" >> $GITHUB_STEP_SUMMARY
           else
-            echo "❌ CI checks failed. Please review the errors above." >> $GITHUB_STEP_SUMMARY
+            echo "- ❌ TypeScript compilation failed" >> $GITHUB_STEP_SUMMARY
+            ALL_PASSED=false
+          fi
+
+          # Check linting
+          if [ "${{ steps.lint_check.outcome }}" == "success" ]; then
+            echo "- ✅ Linting passed (Web & API)" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "- ❌ Linting failed" >> $GITHUB_STEP_SUMMARY
+            ALL_PASSED=false
+          fi
+
+          # Check builds
+          if [ "${{ steps.build_check.outcome }}" == "success" ]; then
+            echo "- ✅ Build successful (Web & API)" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "- ❌ Build failed" >> $GITHUB_STEP_SUMMARY
+            ALL_PASSED=false
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ "$ALL_PASSED" = true ]; then
+            echo "✅ **All CI checks passed!**" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ **CI checks failed. Please review the errors above.**" >> $GITHUB_STEP_SUMMARY
           fi

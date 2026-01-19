@@ -49,32 +49,43 @@ jobs:
           
           IFS='.' read -r MAJOR MINOR PATCH <<< "$LAST_VERSION"
           
-          COMMITS=$(git log ${LAST_TAG}..HEAD --pretty=format:"%s" 2>/dev/null || git log --pretty=format:"%s" -10)
+          # Get commit hashes to process individually
+          COMMIT_HASHES=$(git log ${LAST_TAG}..HEAD --pretty=format:"%H" 2>/dev/null || git log --pretty=format:"%H" -10)
           
           NEW_MAJOR=$MAJOR
           NEW_MINOR=$MINOR
           NEW_PATCH=$PATCH
           VERSION_BUMPED=false
           
-          while IFS= read -r commit; do
-            if [[ "$commit" =~ ^(BREAKING CHANGE|!): ]] || [[ "$commit" =~ ^[a-z]+(\(.+\))?!: ]]; then
+          # Process each commit to check subject and body
+          while IFS= read -r commit_hash; do
+            if [ -z "$commit_hash" ]; then
+              continue
+            fi
+            
+            # Get commit subject and body
+            COMMIT_SUBJECT=$(git log -1 --pretty=format:"%s" "$commit_hash" 2>/dev/null)
+            COMMIT_BODY=$(git log -1 --pretty=format:"%b" "$commit_hash" 2>/dev/null)
+            
+            # Check for breaking changes: ! in subject or BREAKING CHANGE in body/footer
+            if [[ "$COMMIT_SUBJECT" =~ ^[a-z]+(\(.+\))?!: ]] || [[ "$COMMIT_BODY" =~ BREAKING[[:space:]]CHANGE: ]]; then
               NEW_MAJOR=$((NEW_MAJOR + 1))
               NEW_MINOR=0
               NEW_PATCH=0
               VERSION_BUMPED=true
-            elif [[ "$commit" =~ ^(feat|perf)(\(.+\))?: ]]; then
+            elif [[ "$COMMIT_SUBJECT" =~ ^(feat|perf)(\(.+\))?: ]]; then
               if [ "$VERSION_BUMPED" = false ]; then
                 NEW_MINOR=$((NEW_MINOR + 1))
                 NEW_PATCH=0
                 VERSION_BUMPED=true
               fi
-            elif [[ "$commit" =~ ^fix(\(.+\))?: ]]; then
+            elif [[ "$COMMIT_SUBJECT" =~ ^fix(\(.+\))?: ]]; then
               if [ "$VERSION_BUMPED" = false ]; then
                 NEW_PATCH=$((NEW_PATCH + 1))
                 VERSION_BUMPED=true
               fi
             fi
-          done <<< "$COMMITS"
+          done <<< "$COMMIT_HASHES"
           
           # If no version-bumping commits found, default to patch bump
           if [ "$VERSION_BUMPED" = false ]; then
@@ -111,50 +122,6 @@ jobs:
           echo "notes<<EOF" >> $GITHUB_OUTPUT
           echo "$NOTES" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
-
-      - name: Update package versions
-        run: |
-          VERSION="${{ steps.version.outputs.version }}"
-          
-          # Update root package.json
-          if [ -f "package.json" ]; then
-            node -e "
-              const fs = require('fs');
-              const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
-              pkg.version = '$VERSION';
-              fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');
-            "
-          fi
-          
-          # Update apps/web/package.json
-          if [ -f "apps/web/package.json" ]; then
-            node -e "
-              const fs = require('fs');
-              const pkg = JSON.parse(fs.readFileSync('apps/web/package.json', 'utf8'));
-              pkg.version = '$VERSION';
-              fs.writeFileSync('apps/web/package.json', JSON.stringify(pkg, null, 2) + '\n');
-            "
-          fi
-          
-          # Update apps/api/package.json
-          if [ -f "apps/api/package.json" ]; then
-            node -e "
-              const fs = require('fs');
-              const pkg = JSON.parse(fs.readFileSync('apps/api/package.json', 'utf8'));
-              pkg.version = '$VERSION';
-              fs.writeFileSync('apps/api/package.json', JSON.stringify(pkg, null, 2) + '\n');
-            "
-          fi
-
-      - name: Commit version updates
-        run: |
-          git add package.json apps/*/package.json
-          if git diff --staged --quiet; then
-            echo "No version changes to commit"
-          else
-            git commit -m "chore: bump version to ${{ steps.version.outputs.version }}"
-            git push origin main
-          fi
 
       - name: Create git tag
         run: |
