@@ -33,9 +33,13 @@ jobs:
         id: check_conflicts
         run: |
           git fetch origin main
-          BASE=$(git merge-base HEAD origin/main)
-          # Use git merge-tree to detect conflicts (returns non-zero exit code on conflicts)
-          if ! git merge-tree --write-tree "$BASE" HEAD origin/main > /dev/null 2>&1; then
+          # Use git merge-tree to detect conflicts without modifying working tree
+          # In Git 2.38+, merge-tree outputs conflict info or exits with error
+          MERGE_RESULT=$(git merge-tree $(git merge-base HEAD origin/main) HEAD origin/main 2>&1)
+          EXIT_CODE=$?
+
+          # Check for conflict indicators in output or non-zero exit code
+          if [ $EXIT_CODE -ne 0 ] || echo "$MERGE_RESULT" | grep -qE "(conflicted|CONFLICT|<<<<<<<)"; then
             echo "❌ Merge conflicts detected!"
             echo "Please rebase your branch on main or resolve conflicts."
             exit 1
