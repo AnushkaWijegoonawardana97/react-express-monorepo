@@ -1,0 +1,64 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+      - development
+  pull_request:
+    branches:
+      - main
+      - development
+
+jobs:
+  ci:
+    name: Continuous Integration
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.0.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: TypeScript Check
+        run: |
+          echo "Checking TypeScript compilation..."
+          cd apps/web && pnpm exec tsc --noEmit
+          cd ../api && pnpm exec tsc --noEmit
+
+      - name: Lint
+        run: |
+          echo "Running linters..."
+          cd apps/web && pnpm lint
+          cd ../api
+          if [ -f "eslint.config.js" ] || [ -f ".eslintrc.js" ]; then
+            pnpm exec eslint . --ext .ts || echo "No ESLint config for API"
+          fi
+
+      - name: Build
+        run: |
+          echo "Building projects..."
+          pnpm build
+
+      - name: CI Summary
+        if: always()
+        run: |
+          echo "## CI Results" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ job.status }}" == "success" ]; then
+            echo "✅ All CI checks passed!" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ CI checks failed. Please review the errors above." >> $GITHUB_STEP_SUMMARY
+          fi

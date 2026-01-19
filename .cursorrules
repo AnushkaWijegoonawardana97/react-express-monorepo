@@ -1,0 +1,233 @@
+# Cursor Rules for React Express Monorepo
+
+## Project Structure
+
+This is a monorepo with two main applications:
+- `apps/web` - React + TypeScript frontend application
+- `apps/api` - Express + TypeScript backend API
+
+## Web Project Structure (apps/web)
+
+### Atomic Design Component Structure
+
+Components MUST follow Atomic Design principles and be placed in the correct folder:
+
+1. **Atoms** (`src/components/atoms/`): Basic building blocks
+   - Examples: Button, Input, Label, Icon
+   - Each atom should have its own folder: `Button/Button.tsx` and `Button/Button.types.ts`
+   - Atoms should be reusable and have minimal dependencies
+
+2. **Molecules** (`src/components/molecules/`): Simple component groups
+   - Examples: Card, FormField, SearchBar
+   - Molecules combine atoms to create more complex functionality
+   - Each molecule should have its own folder: `Card/Card.tsx` and `Card/Card.types.ts`
+
+3. **Organisms** (`src/components/organisms/`): Complex UI sections
+   - Examples: Header, Navigation, Footer, Sidebar
+   - Organisms combine molecules and atoms
+   - Each organism should have its own folder: `Header/Header.tsx` and `Header/Header.types.ts`
+
+4. **Templates** (`src/components/templates/`): Page layout templates
+   - Examples: PublicLayout, PrivateLayout, DashboardLayout
+   - Templates define the structure of pages
+
+5. **Pages** (`src/components/pages/`): Full page components
+   - Examples: HomePage, LoginPage, DashboardPage
+   - Pages use templates and compose organisms/molecules/atoms
+
+### Component Organization Rules
+
+- Each component MUST have its own folder
+- Each component MUST have a `.types.ts` file for TypeScript types
+- Use type-only imports for types: `import type { ComponentProps } from './Component.types'`
+- Components should be exported as named exports: `export const ComponentName`
+- Follow the pattern: `ComponentName/ComponentName.tsx` and `ComponentName/ComponentName.types.ts`
+
+### Folder Structure Requirements
+
+```
+apps/web/src/
+├── components/
+│   ├── atoms/          # Basic building blocks
+│   ├── molecules/      # Simple component groups
+│   ├── organisms/      # Complex UI sections
+│   ├── templates/      # Page layout templates
+│   └── pages/          # Full page components
+├── hooks/              # Custom React hooks
+├── dto/                # Data Transfer Objects (classes with validation)
+├── constants/          # Application constants
+├── types/              # TypeScript type definitions (interfaces/types)
+├── services/           # API service functions
+├── utils/              # Utility functions
+├── config/             # Configuration files (Axios, etc.)
+└── context/            # React contexts
+```
+
+### TypeScript Rules
+
+- Use TypeScript strictly - NO `any` types unless absolutely necessary with justification
+- All type imports MUST use `import type` syntax
+- All components MUST have proper TypeScript types
+- DTOs in `dto/` folder should be classes with validation methods
+- Types in `types/` folder should be interfaces or type aliases
+- Follow `verbatimModuleSyntax` requirements
+
+## API Project Structure (apps/api)
+
+### Folder Structure Requirements
+
+```
+apps/api/src/
+├── config/          # Environment variables, database, cron, swagger
+├── controllers/     # HTTP request/response logic
+├── services/        # Business logic
+├── models/          # MongoDB schemas (Mongoose)
+├── routes/          # Route definitions
+├── schemas/         # Zod validation schemas
+├── types/           # TypeScript type definitions
+├── middleware/      # Express middleware
+├── utils/           # Utility functions
+└── constants/       # Application constants
+```
+
+### Layer Responsibilities
+
+1. **Controllers**: Handle HTTP requests, call services, return responses
+   - Should be thin - delegate business logic to services
+   - Use `AsyncRequestHandler` type for async handlers
+   - Handle errors by calling `next(error)`
+
+2. **Services**: Contain business logic
+   - Interact with models
+   - Perform data transformations
+   - Handle business rules
+
+3. **Models**: MongoDB schemas using Mongoose
+   - Define data structure
+   - Include validation at schema level
+
+4. **Schemas**: Zod validation schemas
+   - Validate request/response data
+   - Used by validation middleware
+
+5. **Middleware**: Express middleware functions
+   - Authentication, error handling, validation
+   - Should be reusable and composable
+
+## Coding Principles
+
+### SOLID Principles
+
+1. **Single Responsibility**: Each class/function should have one reason to change
+2. **Open/Closed**: Open for extension, closed for modification
+3. **Liskov Substitution**: Derived classes must be substitutable for base classes
+4. **Interface Segregation**: Clients shouldn't depend on interfaces they don't use
+5. **Dependency Inversion**: Depend on abstractions, not concretions
+
+### DRY (Don't Repeat Yourself)
+
+- Extract common logic into utilities or hooks
+- Reuse components instead of duplicating
+- Create shared constants for repeated values
+
+### KISS (Keep It Simple, Stupid)
+
+- Prefer simple solutions over complex ones
+- Avoid over-engineering
+- Write code that is easy to understand
+
+### YAGNI (You Aren't Gonna Need It)
+
+- Don't add functionality until it's needed
+- Avoid speculative code
+- Focus on current requirements
+
+## TypeScript Best Practices
+
+1. **Type Safety**: Always use proper types, avoid `any`
+2. **Type-only Imports**: Use `import type` for type-only imports
+3. **Explicit Types**: Prefer explicit types over inference when it improves clarity
+4. **Interface vs Type**: Use interfaces for objects, types for unions/intersections
+5. **Generic Types**: Use generics for reusable components/functions
+6. **Type Guards**: Use type guards for runtime type checking
+
+## Code Organization
+
+### Imports Order
+
+1. External dependencies (React, libraries)
+2. Internal absolute imports (from src/)
+3. Relative imports (./, ../)
+4. Type imports (should use `import type`)
+
+### File Naming
+
+- Components: PascalCase (e.g., `Button.tsx`)
+- Utilities: camelCase (e.g., `formatDate.ts`)
+- Types: camelCase with `.types.ts` suffix (e.g., `Button.types.ts`)
+- Constants: UPPER_SNAKE_CASE for constants, camelCase for files
+
+### Export Patterns
+
+- Use named exports for components: `export const ComponentName`
+- Use default exports sparingly (only for main app entry points)
+- Export types separately: `export type { TypeName }`
+
+## React Best Practices
+
+1. **Functional Components**: Always use functional components with hooks
+2. **Custom Hooks**: Extract reusable logic into custom hooks
+3. **Component Composition**: Prefer composition over inheritance
+4. **Props Destructuring**: Destructure props in function parameters
+5. **Memoization**: Use `useMemo` and `useCallback` appropriately
+6. **Error Boundaries**: Use error boundaries for error handling
+
+## API Best Practices
+
+1. **Error Handling**: Always use try-catch in async functions
+2. **Error Middleware**: Use centralized error handling middleware
+3. **Validation**: Validate all inputs using Zod schemas
+4. **Response Format**: Use consistent response format (success/error)
+5. **Status Codes**: Use appropriate HTTP status codes
+6. **Async Handlers**: Use `AsyncRequestHandler` type for route handlers
+
+## Code Quality
+
+1. **No Unused Code**: Remove unused imports, variables, functions
+2. **Self-Documenting Code**: Write clear, descriptive names
+3. **Minimal Comments**: Code should be self-explanatory
+4. **Consistent Formatting**: Follow project formatting rules
+5. **Linting**: All code must pass ESLint checks
+6. **Type Checking**: All code must pass TypeScript compilation
+
+## Git Commit Conventions
+
+Follow semantic commit format:
+- `feat(scope): description` - New features
+- `fix(scope): description` - Bug fixes
+- `docs: description` - Documentation
+- `refactor(scope): description` - Code refactoring
+- `test(scope): description` - Tests
+- `chore: description` - Maintenance
+
+See `COMMIT_CONVENTIONS.md` for detailed guidelines.
+
+## When Creating New Code
+
+1. **Check folder structure**: Place files in the correct directory based on their purpose
+2. **Follow naming conventions**: Use appropriate naming patterns
+3. **Create types file**: If creating a component, create corresponding `.types.ts` file
+4. **Use type-only imports**: Import types with `import type`
+5. **Add proper error handling**: Handle errors appropriately
+6. **Write self-documenting code**: Use clear, descriptive names
+7. **Follow existing patterns**: Match the style and structure of existing code
+
+## Prohibited Practices
+
+- ❌ Direct pushes to `main` branch (must use PRs)
+- ❌ Using `any` type without justification
+- ❌ Mixing component levels (atoms using organisms, etc.)
+- ❌ Placing components in wrong folders
+- ❌ Skipping type definitions
+- ❌ Ignoring linting errors
+- ❌ Committing without following semantic commit format
