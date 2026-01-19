@@ -1,0 +1,138 @@
+name: PR Validation
+
+on:
+  pull_request:
+    branches:
+      - main
+    types: [opened, synchronize, reopened, ready_for_review]
+
+jobs:
+  validate:
+    name: Validate PR
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "pnpm"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Check for merge conflicts
+        id: check_conflicts
+        run: |
+          git fetch origin main
+          # Use git merge-tree to detect conflicts without modifying working tree
+          # In Git 2.38+, merge-tree outputs conflict info or exits with error
+          MERGE_RESULT=$(git merge-tree $(git merge-base HEAD origin/main) HEAD origin/main 2>&1)
+          EXIT_CODE=$?
+
+          # Check for conflict indicators in output or non-zero exit code
+          if [ $EXIT_CODE -ne 0 ] || echo "$MERGE_RESULT" | grep -qE "(conflicted|CONFLICT|<<<<<<<)"; then
+            echo "❌ Merge conflicts detected!"
+            echo "Please rebase your branch on main or resolve conflicts."
+            exit 1
+          fi
+          echo "✅ No merge conflicts"
+
+      - name: TypeScript Check (Web)
+        id: tsc_web
+        run: cd apps/web && pnpm exec tsc --noEmit
+
+      - name: TypeScript Check (API)
+        id: tsc_api
+        run: cd apps/api && pnpm exec tsc --noEmit
+
+      - name: Lint (Web)
+        id: lint_web
+        run: cd apps/web && pnpm lint
+
+      - name: Lint (API)
+        id: lint_api
+        run: |
+          cd apps/api
+          if [ -f "eslint.config.js" ] || [ -f ".eslintrc.js" ]; then
+            pnpm exec eslint . --ext .ts
+          else
+            echo "⚠️  No ESLint config found for API, skipping lint"
+          fi
+
+      - name: Build (Web)
+        id: build_web
+        run: cd apps/web && pnpm build
+
+      - name: Build (API)
+        id: build_api
+        run: cd apps/api && pnpm build
+
+      - name: PR Validation Summary
+        if: always()
+        run: |
+          echo "## PR Validation Results" >> $GITHUB_STEP_SUMMARY
+
+          ALL_PASSED=true
+
+          # Check merge conflicts
+          if [ "${{ steps.check_conflicts.outcome }}" == "success" ]; then
+            echo "- ✅ No merge conflicts" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "- ❌ Merge conflicts detected" >> $GITHUB_STEP_SUMMARY
+            ALL_PASSED=false
+          fi
+
+          # Check TypeScript compilation
+          if [ "${{ steps.tsc_web.outcome }}" == "success" ] && [ "${{ steps.tsc_api.outcome }}" == "success" ]; then
+            echo "- ✅ TypeScript compilation successful (Web & API)" >> $GITHUB_STEP_SUMMARY
+          else
+            if [ "${{ steps.tsc_web.outcome }}" != "success" ]; then
+              echo "- ❌ TypeScript compilation failed (Web)" >> $GITHUB_STEP_SUMMARY
+            fi
+            if [ "${{ steps.tsc_api.outcome }}" != "success" ]; then
+              echo "- ❌ TypeScript compilation failed (API)" >> $GITHUB_STEP_SUMMARY
+            fi
+            ALL_PASSED=false
+          fi
+
+          # Check linting
+          if [ "${{ steps.lint_web.outcome }}" == "success" ] && [ "${{ steps.lint_api.outcome }}" == "success" ]; then
+            echo "- ✅ Linting passed (Web & API)" >> $GITHUB_STEP_SUMMARY
+          else
+            if [ "${{ steps.lint_web.outcome }}" != "success" ]; then
+              echo "- ❌ Linting failed (Web)" >> $GITHUB_STEP_SUMMARY
+            fi
+            if [ "${{ steps.lint_api.outcome }}" != "success" ]; then
+              echo "- ❌ Linting failed (API)" >> $GITHUB_STEP_SUMMARY
+            fi
+            ALL_PASSED=false
+          fi
+
+          # Check builds
+          if [ "${{ steps.build_web.outcome }}" == "success" ] && [ "${{ steps.build_api.outcome }}" == "success" ]; then
+            echo "- ✅ Build successful (Web & API)" >> $GITHUB_STEP_SUMMARY
+          else
+            if [ "${{ steps.build_web.outcome }}" != "success" ]; then
+              echo "- ❌ Build failed (Web)" >> $GITHUB_STEP_SUMMARY
+            fi
+            if [ "${{ steps.build_api.outcome }}" != "success" ]; then
+              echo "- ❌ Build failed (API)" >> $GITHUB_STEP_SUMMARY
+            fi
+            ALL_PASSED=false
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ "$ALL_PASSED" = true ]; then
+            echo "✅ **All validations passed!**" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ **Validation failed. Please fix the errors above.**" >> $GITHUB_STEP_SUMMARY
+          fi

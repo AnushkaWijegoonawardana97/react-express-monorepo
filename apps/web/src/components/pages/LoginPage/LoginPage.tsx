@@ -1,4 +1,5 @@
-import { useState, FormEvent } from 'react';
+import { useState } from 'react';
+import type { FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card } from '../../molecules/Card/Card';
 import { FormField } from '../../molecules/FormField/FormField';
@@ -42,7 +43,7 @@ export const LoginPage = () => {
     try {
       await login({ email, password });
       navigate(ROUTES.DASHBOARD);
-    } catch (error) {
+    } catch {
       setErrors({ email: 'Invalid credentials. Please try again.' });
     } finally {
       setIsLoading(false);
