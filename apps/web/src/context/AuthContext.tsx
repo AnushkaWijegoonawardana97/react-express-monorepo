@@ -30,8 +30,6 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
       localStorage.setItem('auth_token', 'mock_token_' + Date.now());
       setUser(mockUser);
-    } catch (error) {
-      throw error;
     } finally {
       setIsLoading(false);
     }
@@ -53,6 +51,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const useAuthContext = (): AuthContextType => {
   const context = useContext(AuthContext);
   if (context === undefined) {

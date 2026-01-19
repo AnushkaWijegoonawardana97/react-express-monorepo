@@ -42,7 +42,7 @@ export const LoginPage = () => {
     try {
       await login({ email, password });
       navigate(ROUTES.DASHBOARD);
-    } catch (error) {
+    } catch {
       setErrors({ email: 'Invalid credentials. Please try again.' });
     } finally {
       setIsLoading(false);
