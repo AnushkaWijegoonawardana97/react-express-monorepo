@@ -1,10 +1,10 @@
-import { Router } from 'express';
+import { Router, type Router as ExpressRouter } from 'express';
 import { login, register, logout } from '../controllers/auth.controller';
 import { validate } from '../middleware/validation.middleware';
 import { loginSchema, registerSchema } from '../schemas/auth.schema';
 import { authenticate } from '../middleware/auth.middleware';
 
-const router = Router();
+const router: ExpressRouter = Router();
 
 /**
  * @swagger

@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { Router, type Router as ExpressRouter } from 'express';
 import {
   createUser,
   getUserById,
@@ -14,7 +14,7 @@ import {
 } from '../schemas/user.schema';
 import { authenticate } from '../middleware/auth.middleware';
 
-const router = Router();
+const router: ExpressRouter = Router();
 
 router.use(authenticate);
 
